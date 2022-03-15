@@ -11,12 +11,16 @@ module DB
     # The exception thrown is bubbled unless it is a `DB::Rollback`.
     # From the yielded object `Transaction#commit` or `Transaction#rollback`
     # can be called explicitly.
-    def transaction
-      tx = begin_transaction
+    # Returns the value of the block.
+    def transaction(& : Transaction -> T) : T? forall T
+      # TODO: Cast to workaround crystal-lang/crystal#9483
+      # begin_transaction returns a Tx where Tx < Transaction
+      tx = begin_transaction.as(Transaction)
       begin
-        yield tx
+        res = yield tx
       rescue DB::Rollback
         tx.rollback unless tx.closed?
+        res
       rescue e
         unless tx.closed?
           # Ignore error in rollback.
@@ -27,6 +31,7 @@ module DB
         raise e
       else
         tx.commit unless tx.closed?
+        res
       end
     end
   end

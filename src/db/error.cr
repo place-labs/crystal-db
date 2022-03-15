@@ -6,6 +6,19 @@ module DB
   end
 
   class MappingException < Error
+    getter klass
+    getter property
+
+    def initialize(message, @klass : String, @property : String? = nil, cause : Exception? = nil)
+      message = String.build do |io|
+        io << message
+        io << "\n  deserializing " << @klass
+        if property = @property
+          io << "#" << property
+        end
+      end
+      super(message, cause: cause)
+    end
   end
 
   class PoolTimeout < Error
@@ -18,6 +31,7 @@ module DB
     getter resource : T
 
     def initialize(@resource : T)
+      @resource.close
     end
   end
 
@@ -44,5 +58,18 @@ module DB
 
   # Raised when a scalar query returns no results.
   class NoResultsError < Error
+  end
+
+  # Raised when the type returned for the column value
+  # does not match the type expected.
+  class ColumnTypeMismatchError < Error
+    getter column_index : Int32
+    getter column_name : String
+    getter column_type : String
+    getter expected_type : String
+
+    def initialize(*, context : String, @column_index : Int32, @column_name : String, @column_type : String, @expected_type : String)
+      super("In #{context} the column #{column_name} returned a #{column_type} but a #{expected_type} was expected.")
+    end
   end
 end

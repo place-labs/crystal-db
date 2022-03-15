@@ -141,7 +141,9 @@ module DB
       idle_pushed = false
 
       sync do
-        if can_increase_idle_pool
+        if resource.responds_to?(:closed?) && resource.closed?
+          @total.delete(resource)
+        elsif can_increase_idle_pool
           @idle << resource
           if resource.responds_to?(:after_release)
             resource.after_release
@@ -177,10 +179,12 @@ module DB
           sleep @retry_delay if i >= current_available
           return yield
         rescue e : PoolResourceLost(T)
-          # if the connection is lost close it to release resources
-          # and remove it from the known pool.
+          # if the connection is lost it will be closed by
+          # the exception to release resources
+          # we still need to remove it from the known pool.
+          # Closed connection will be evicted from statement cache
+          # in PoolPreparedStatement#clean_connections
           sync { delete(e.resource) }
-          e.resource.close
         rescue e : PoolResourceRefused
           # a ConnectionRefused means a new connection
           # was intended to be created

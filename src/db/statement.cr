@@ -89,9 +89,9 @@ module DB
     end
 
     private def perform_query_with_rescue(args : Enumerable) : ResultSet
-      around_query_or_exec(args) do
+      around_query_or_exec(args) {
         perform_query(args)
-      end
+      }.not_nil!
     rescue e : Exception
       # Release connection only when an exception occurs during the query
       # execution since we need the connection open while the ResultSet is open
